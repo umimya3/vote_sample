@@ -1,19 +1,17 @@
-
 import streamlit as st
 import psycopg2
 import os
 from PIL import Image
 
 # --- アイテム設定 ---
-# 内部名、表示名、画像ファイル名の対応
 ITEM_CONFIG = {
     'fig01': {'display_name': '赤の候補', 'image': 'fig01.jpg'},
     'fig02': {'display_name': '緑の候補', 'image': 'fig02.jpg'},
     'fig03': {'display_name': '青の候補', 'image': 'fig03.jpg'},
+    'fig04': {'display_name': '黄の候補', 'image': 'fig04.jpg'},
+    'fig05': {'display_name': '紫の候補', 'image': 'fig05.jpg'},
 }
-# DBに登録するアイテム名のリスト
 ITEM_NAMES = list(ITEM_CONFIG.keys())
-
 
 # --- データベース接続 ---
 @st.cache_resource
@@ -41,7 +39,6 @@ def init_db():
                     vote_count INTEGER DEFAULT 0
                 );
             """)
-            # プレースホルダーを動的に生成し、安全にSQLを組み立てる
             args_str = ', '.join(cur.mogrify("(%s)", (name,)).decode('utf-8') for name in ITEM_NAMES)
             if args_str:
                 cur.execute(f"INSERT INTO votes (item_name) VALUES {args_str} ON CONFLICT (item_name) DO NOTHING;")
@@ -54,12 +51,8 @@ def fetch_votes_from_db():
         with conn.cursor() as cur:
             cur.execute("SELECT item_name, vote_count FROM votes;")
             db_votes = {row[0]: row[1] for row in cur.fetchall()}
-            # ITEM_CONFIGに定義されている全てのアイテムが含まれるようにデフォルト値0で初期化
-            votes = {name: db_votes.get(name, 0) for name in ITEM_NAMES}
-            return votes
-    # DB接続失敗時は、設定からデフォルト値を生成
+            return {name: db_votes.get(name, 0) for name in ITEM_NAMES}
     return {name: 0 for name in ITEM_NAMES}
-
 
 # --- 投票をDBに記録 ---
 def add_vote_to_db(item_name):
@@ -71,7 +64,9 @@ def add_vote_to_db(item_name):
 
 # --- Streamlit アプリケーション ---
 st.set_page_config(layout="wide")
-st.title("人気投票サイト")
+
+# タイトルを中央寄せ
+st.markdown("<h1 style='text-align: center;'>人気投票サイト</h1>", unsafe_allow_html=True)
 
 # --- 初期化 ---
 init_db()
@@ -80,13 +75,23 @@ init_db()
 if 'votes' not in st.session_state:
     st.session_state.votes = fetch_votes_from_db()
 
-# --- 投票ボタンが押されたときのコールバック関数 ---
+# --- 投票ボタンのコールバック ---
 def handle_vote(item_name):
     add_vote_to_db(item_name)
     st.session_state.votes[item_name] += 1
 
 # --- 画面レイアウト ---
 cols = st.columns(len(ITEM_NAMES))
+
+# ボタンを中央寄せするためのCSSハック
+st.markdown("""
+<style>
+div.stButton > button {
+    display: block;
+    margin: 0 auto;
+}
+</style>
+""", unsafe_allow_html=True)
 
 for i, (item_name, config) in enumerate(ITEM_CONFIG.items()):
     with cols[i]:
@@ -101,13 +106,12 @@ for i, (item_name, config) in enumerate(ITEM_CONFIG.items()):
 
 st.divider()
 
-# --- 投票結果の表示 (Session Stateから) ---
+# --- 投票結果の表示 ---
 st.header("現在の投票結果")
 
 votes = st.session_state.votes
 total_votes = sum(votes.values())
 
-# ITEM_CONFIGの順序で結果を表示
 for item_name, config in ITEM_CONFIG.items():
     count = votes.get(item_name, 0)
     display_name = config['display_name']
