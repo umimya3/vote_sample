@@ -5,11 +5,11 @@ from PIL import Image
 
 # --- アイテム設定 ---
 ITEM_CONFIG = {
-    'fig01': {'display_name': '赤の候補', 'image': 'fig01.jpg'},
-    'fig02': {'display_name': '緑の候補', 'image': 'fig02.jpg'},
-    'fig03': {'display_name': '青の候補', 'image': 'fig03.jpg'},
-    'fig04': {'display_name': '黄の候補', 'image': 'fig04.jpg'},
-    'fig05': {'display_name': '紫の候補', 'image': 'fig05.jpg'},
+    'fig01': {'display_name': '01', 'image': 'fig01.jpg'},
+    'fig02': {'display_name': '02', 'image': 'fig02.jpg'},
+    'fig03': {'display_name': '03', 'image': 'fig03.jpg'},
+    'fig04': {'display_name': '04', 'image': 'fig04.jpg'},
+    'fig05': {'display_name': '05', 'image': 'fig05.jpg'},
 }
 ITEM_NAMES = list(ITEM_CONFIG.keys())
 
