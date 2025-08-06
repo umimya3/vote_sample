@@ -1,10 +1,21 @@
+
 import streamlit as st
 import psycopg2
 import os
 from PIL import Image
 
+# --- アイテム設定 ---
+# 内部名、表示名、画像ファイル名の対応
+ITEM_CONFIG = {
+    'fig01': {'display_name': '赤の候補', 'image': 'fig01.jpg'},
+    'fig02': {'display_name': '緑の候補', 'image': 'fig02.jpg'},
+    'fig03': {'display_name': '青の候補', 'image': 'fig03.jpg'},
+}
+# DBに登録するアイテム名のリスト
+ITEM_NAMES = list(ITEM_CONFIG.keys())
+
+
 # --- データベース接続 ---
-# st.cache_resourceは、アプリ全体で一度だけ実行されるように関数をキャッシュする
 @st.cache_resource
 def get_db_connection():
     db_url = os.environ.get("DATABASE_URL")
@@ -30,18 +41,25 @@ def init_db():
                     vote_count INTEGER DEFAULT 0
                 );
             """)
-            cur.execute("INSERT INTO votes (item_name) VALUES ('fig01'), ('fig02'), ('fig03') ON CONFLICT (item_name) DO NOTHING;")
+            # プレースホルダーを動的に生成し、安全にSQLを組み立てる
+            args_str = ', '.join(cur.mogrify("(%s)", (name,)).decode('utf-8') for name in ITEM_NAMES)
+            if args_str:
+                cur.execute(f"INSERT INTO votes (item_name) VALUES {args_str} ON CONFLICT (item_name) DO NOTHING;")
             conn.commit()
-        # この接続はキャッシュされているので閉じない
 
 # --- 投票データをDBから取得 ---
 def fetch_votes_from_db():
     conn = get_db_connection()
     if conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT item_name, vote_count FROM votes ORDER BY item_name;")
-            return {row[0]: row[1] for row in cur.fetchall()}
-    return {'fig01': 0, 'fig02': 0, 'fig03': 0}
+            cur.execute("SELECT item_name, vote_count FROM votes;")
+            db_votes = {row[0]: row[1] for row in cur.fetchall()}
+            # ITEM_CONFIGに定義されている全てのアイテムが含まれるようにデフォルト値0で初期化
+            votes = {name: db_votes.get(name, 0) for name in ITEM_NAMES}
+            return votes
+    # DB接続失敗時は、設定からデフォルト値を生成
+    return {name: 0 for name in ITEM_NAMES}
+
 
 # --- 投票をDBに記録 ---
 def add_vote_to_db(item_name):
@@ -59,32 +77,26 @@ st.title("人気投票サイト")
 init_db()
 
 # --- Session Stateの初期化 ---
-# st.session_stateに'votes'がなければ、DBから読み込んで初期化
 if 'votes' not in st.session_state:
     st.session_state.votes = fetch_votes_from_db()
 
 # --- 投票ボタンが押されたときのコールバック関数 ---
 def handle_vote(item_name):
-    # まずDBを更新
     add_vote_to_db(item_name)
-    # 次にSession Stateを更新
     st.session_state.votes[item_name] += 1
 
 # --- 画面レイアウト ---
-col1, col2, col3 = st.columns(3)
-image_files = {'fig01': "fig01.jpg", 'fig02': "fig02.jpg", 'fig03': "fig03.jpg"}
-cols = {'fig01': col1, 'fig02': col2, 'fig03': col3}
+cols = st.columns(len(ITEM_NAMES))
 
-for i, (item_name, image_file) in enumerate(image_files.items()):
-    with cols[item_name]:
-        st.header(f"候補{i+1}")
+for i, (item_name, config) in enumerate(ITEM_CONFIG.items()):
+    with cols[i]:
+        st.header(config['display_name'])
         try:
-            image = Image.open(image_file)
+            image = Image.open(config['image'])
             st.image(image, use_container_width=True)
         except FileNotFoundError:
-            st.error(f"{image_file} が見つかりません。")
+            st.error(f"{config['image']} が見つかりません。")
         
-        # ボタンが押されたらhandle_voteを呼び出す
         st.button("投票する", key=f"btn_{item_name}", on_click=handle_vote, args=(item_name,))
 
 st.divider()
@@ -92,11 +104,13 @@ st.divider()
 # --- 投票結果の表示 (Session Stateから) ---
 st.header("現在の投票結果")
 
-# Session Stateから票数を取得
 votes = st.session_state.votes
 total_votes = sum(votes.values())
 
-for item, count in votes.items():
+# ITEM_CONFIGの順序で結果を表示
+for item_name, config in ITEM_CONFIG.items():
+    count = votes.get(item_name, 0)
+    display_name = config['display_name']
     percentage = (count / total_votes * 100) if total_votes > 0 else 0
-    st.write(f"**{item}:** {count} 票 ({percentage:.1f}%)")
+    st.write(f"**{display_name}:** {count} 票 ({percentage:.1f}%)")
     st.progress(percentage / 100)
