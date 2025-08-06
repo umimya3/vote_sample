@@ -75,37 +75,37 @@ with col1:
     st.header("候補1")
     try:
         img1 = Image.open("fig01.jpg")
-        st.image(img1, use_column_width=True)
+        st.image(img1, use_container_width=True)
     except FileNotFoundError:
         st.error("fig01.jpg が見つかりません。")
 
     if st.button("投票する", key="btn1"):
         add_vote("fig01")
-        st.rerun() # 画面を再読み込みして結果を即時反映
+
 
 with col2:
     st.header("候補2")
     try:
         img2 = Image.open("fig02.jpg")
-        st.image(img2, use_column_width=True)
+        st.image(img2, use_container_width=True)
     except FileNotFoundError:
         st.error("fig02.jpg が見つかりません。")
 
     if st.button("投票する", key="btn2"):
         add_vote("fig02")
-        st.rerun()
+        
 
 with col3:
     st.header("候補3")
     try:
         img3 = Image.open("fig03.jpg")
-        st.image(img3, use_column_width=True)
+        st.image(img3, use_container_width=True)
     except FileNotFoundError:
         st.error("fig03.jpg が見つかりません。")
 
     if st.button("投票する", key="btn3"):
         add_vote("fig03")
-        st.rerun()
+        
 
 st.divider()
 
